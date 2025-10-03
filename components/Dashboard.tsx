@@ -1,11 +1,13 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
+import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Input } from "./ui/input";
 import { Slider } from "./ui/slider";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "./ui/chart";
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 
 const Dashboard: React.FC = () => {
   const [monthlyPrice, setMonthlyPrice] = useState<number>(5);
@@ -17,6 +19,10 @@ const Dashboard: React.FC = () => {
   const [yearlyRatio, setYearlyRatio] = useState<number>(0.6);
   const [impressions, setImpressions] = useState<number>(1000);
   const [appStoreCut, setAppStoreCut] = useState<number>(0.3);
+  const [averageViewsPerVideo, setAverageViewsPerVideo] = useState<number>(10000);
+  const [worstCaseConversionRate, setWorstCaseConversionRate] = useState<number>(0.0002);
+  const [bestCaseConversionRate, setBestCaseConversionRate] = useState<number>(0.001);
+  const [cpm, setCpm] = useState<number>(10);
 
   const totalSubscribers = useMemo(() => impressions * conversionRate, [impressions, conversionRate]);
   const monthlySubs = useMemo(() => totalSubscribers * (1 - yearlyRatio), [totalSubscribers, yearlyRatio]);
@@ -39,11 +45,22 @@ const Dashboard: React.FC = () => {
     { name: 'Profit', value: profit, fill: '#10b981' }
   ], [profit]);
 
+  const effectivePricePerSubscriber = useMemo(() => totalSubscribers > 0 ? (monthlySubs * monthlyPrice * retentionMonths + yearlySubs * yearlyPrice * yearlyRetentionYears) / totalSubscribers : 0, [totalSubscribers, monthlySubs, monthlyPrice, retentionMonths, yearlySubs, yearlyPrice, yearlyRetentionYears]);
+  const worstRPM = useMemo(() => worstCaseConversionRate * effectivePricePerSubscriber * (1 - appStoreCut) * 1000 / averageViewsPerVideo, [worstCaseConversionRate, effectivePricePerSubscriber, appStoreCut, averageViewsPerVideo]);
+  const bestRPM = useMemo(() => bestCaseConversionRate * effectivePricePerSubscriber * (1 - appStoreCut) * 1000 / averageViewsPerVideo, [bestCaseConversionRate, effectivePricePerSubscriber, appStoreCut, averageViewsPerVideo]);
+  const worstPPM = useMemo(() => worstRPM - cpm, [worstRPM, cpm]);
+  const bestPPM = useMemo(() => bestRPM - cpm, [bestRPM, cpm]);
+
   return (
     <div className="p-6 space-y-6">
-      <h1 className="text-2xl font-bold">Influencer Marketing Dashboard</h1>
+      <h1 className="text-2xl font-bold">Marketing Projections</h1>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <Tabs defaultValue="projections" className="w-full">
+        <TabsList>
+           <TabsTrigger value="projections">Projections</TabsTrigger>
+         </TabsList>
+        <TabsContent value="projections">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {/* Pricing Card */}
         <Card>
           <CardHeader>
@@ -66,50 +83,6 @@ const Dashboard: React.FC = () => {
                 step="1"
                 value={yearlyPrice}
                 onChange={(e) => setYearlyPrice(parseInt(e.target.value) || 0)}
-              />
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Conversion & Impressions Card */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Conversion & Impressions</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium">Conversion Rate (%)</label>
-              <Slider
-                value={[conversionRate]}
-                onValueChange={(value) => setConversionRate(value[0])}
-                min={0.0001}
-                max={0.01}
-                step={0.0001}
-                className="mt-2"
-              />
-              <p className="text-sm text-muted-foreground mt-1">{(conversionRate * 100).toFixed(2)}%</p>
-            </div>
-            <div>
-              <label className="block text-sm font-medium">Yearly to Monthly Ratio (%)</label>
-              <p className="text-xs text-muted-foreground mb-2">Percentage of users likely to opt for the yearly subscription</p>
-              <Slider
-                value={[yearlyRatio * 100]}
-                onValueChange={(value) => setYearlyRatio(value[0] / 100)}
-                min={0}
-                max={100}
-                step={1}
-                className="mt-2"
-              />
-              <p className="text-sm text-muted-foreground mt-1">{(yearlyRatio * 100).toFixed(0)}%</p>
-            </div>
-            <div>
-              <label className="block text-sm font-medium">Impressions</label>
-              <Input
-                type="number"
-                step="1"
-                min="1"
-                value={impressions}
-                onChange={(e) => setImpressions(Math.max(1, parseInt(e.target.value) || 1))}
               />
             </div>
           </CardContent>
@@ -166,35 +139,81 @@ const Dashboard: React.FC = () => {
           </CardContent>
         </Card>
 
+        {/* Conversion & Impressions Card */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Conversion & Impressions</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium">Conversion Rate (%)</label>
+              <Slider
+                value={[conversionRate]}
+                onValueChange={(value) => setConversionRate(value[0])}
+                min={0.0001}
+                max={0.01}
+                step={0.0001}
+                className="mt-2"
+              />
+              <p className="text-sm text-muted-foreground mt-1">{(conversionRate * 100).toFixed(2)}%</p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium">Yearly to Monthly Ratio (%)</label>
+              <p className="text-xs text-muted-foreground mb-2">Percentage of users likely to opt for the yearly subscription</p>
+              <Slider
+                value={[yearlyRatio * 100]}
+                onValueChange={(value) => setYearlyRatio(value[0] / 100)}
+                min={0}
+                max={100}
+                step={1}
+                className="mt-2"
+              />
+              <p className="text-sm text-muted-foreground mt-1">{(yearlyRatio * 100).toFixed(0)}%</p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium">Impressions</label>
+              <Input
+                type="number"
+                step="1"
+                min="1"
+                value={impressions}
+                onChange={(e) => setImpressions(Math.max(1, parseInt(e.target.value) || 1))}
+              />
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Subscribers Card */}
         <Card>
           <CardHeader>
             <CardTitle>Subscribers</CardTitle>
           </CardHeader>
           <CardContent>
-            <ChartContainer
-              config={{
-                profit: { label: 'Profit', color: '#10b981' }
-              }}
-              className="h-[200px] mb-4"
-            >
-              <PieChart>
-                <Pie
-                  data={subscriberData}
-                  dataKey="value"
-                  nameKey="name"
-                  cx="50%"
-                  cy="50%"
-                  outerRadius={80}
-                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                >
-                  {subscriberData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.fill} />
-                  ))}
-                </Pie>
-                <ChartTooltip content={<ChartTooltipContent />} />
-              </PieChart>
-            </ChartContainer>
+            <div className="flex justify-center mb-4">
+              <ChartContainer
+                config={{
+                  profit: { label: 'Profit', color: '#10b981' }
+                }}
+                className="h-[150px] md:h-[200px] w-full max-w-md overflow-hidden"
+              >
+                <PieChart>
+                  <Pie
+                    data={subscriberData}
+                    dataKey="value"
+                    nameKey="name"
+                    cx="50%"
+                    cy="50%"
+                    outerRadius={60}
+                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                  >
+                    {subscriberData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.fill} />
+                    ))}
+                  </Pie>
+                  <ChartTooltip content={<ChartTooltipContent />} />
+                </PieChart>
+              </ChartContainer>
+            </div>
             <div className="space-y-3">
               <div className="border rounded p-3 bg-muted/50">
                 <p className="text-sm font-semibold mb-1">Total Subscribers</p>
@@ -227,25 +246,27 @@ const Dashboard: React.FC = () => {
             <CardTitle>Revenue</CardTitle>
           </CardHeader>
           <CardContent>
-            <ChartContainer
-              config={{
-                revenue: { label: 'Revenue', color: '#f59e0b' },
-                clv: { label: 'CLV', color: '#ef4444' }
-              }}
-              className="h-[200px] mb-4"
-            >
-              <BarChart data={revenueData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" />
-                <YAxis />
-                <ChartTooltip content={<ChartTooltipContent />} />
-                <Bar dataKey="value">
-                  {revenueData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.fill} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ChartContainer>
+            <div className="flex justify-center mb-4">
+              <ChartContainer
+                config={{
+                  revenue: { label: 'Revenue', color: '#f59e0b' },
+                  clv: { label: 'CLV', color: '#ef4444' }
+                }}
+                className="h-[150px] md:h-[200px] w-full max-w-md overflow-hidden"
+              >
+                <BarChart data={revenueData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="name" />
+                  <YAxis />
+                  <ChartTooltip content={<ChartTooltipContent />} />
+                  <Bar dataKey="value">
+                    {revenueData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.fill} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ChartContainer>
+            </div>
             <div className="space-y-3">
               <div className="border rounded p-3 bg-muted/50">
                 <p className="text-sm font-semibold mb-1">Revenue</p>
@@ -271,25 +292,27 @@ const Dashboard: React.FC = () => {
             <CardTitle>Profit</CardTitle>
           </CardHeader>
           <CardContent>
-            <ChartContainer
-              config={{
-                monthly: { label: 'Monthly', color: '#3b82f6' },
-                yearly: { label: 'Yearly', color: '#10b981' }
-              }}
-              className="h-[200px] mb-4"
-            >
-              <BarChart data={profitData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" />
-                <YAxis />
-                <ChartTooltip content={<ChartTooltipContent />} />
-                <Bar dataKey="value">
-                  {profitData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.fill} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ChartContainer>
+            <div className="flex justify-center mb-4">
+              <ChartContainer
+                config={{
+                  monthly: { label: 'Monthly', color: '#3b82f6' },
+                  yearly: { label: 'Yearly', color: '#10b981' }
+                }}
+                className="h-[150px] md:h-[200px] w-full max-w-md overflow-hidden"
+              >
+                <BarChart data={profitData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="name" />
+                  <YAxis />
+                  <ChartTooltip content={<ChartTooltipContent />} />
+                  <Bar dataKey="value">
+                    {profitData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.fill} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ChartContainer>
+            </div>
             <div className="space-y-3">
               <div className="border rounded p-3 bg-muted/50">
                 <p className="text-sm font-semibold mb-1">Profit</p>
@@ -301,7 +324,9 @@ const Dashboard: React.FC = () => {
             </div>
           </CardContent>
         </Card>
-      </div>
+          </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };
